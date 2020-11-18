@@ -1,4 +1,5 @@
 import com.chw.Student
+import groovy.json.JsonSlurper
 
 class FileTest {
     static void main(String[] args) {
@@ -29,6 +30,12 @@ class FileTest {
 
         def stu1 = readObject(targetFile.parentFile.path + '/stu.obj')
         println(stu1)
+
+
+        def reponse = getNetworkData('https://wanandroid.com/wxarticle/list/408/1/json')
+
+        println reponse
+        println reponse.data.datas.size()
 
         println '`' * 100
     }
@@ -87,5 +94,17 @@ class FileTest {
 
         }
         return obj
+    }
+
+
+    static getNetworkData(String url) {
+        //发送http请求
+        def connection = new URL(url).openConnection()
+        connection.setRequestMethod('GET')
+        connection.connect()
+        def response = connection.content.text
+        //将 json 转化为实体对象
+        def jsonSluper = new JsonSlurper()
+        return jsonSluper.parseText(response)
     }
 }
