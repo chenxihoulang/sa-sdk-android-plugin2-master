@@ -1,0 +1,13 @@
+ext {
+    android = [
+            compileSdkVersion: 27,
+            buildToolsVersion: "28.0.3"
+    ]
+
+    dependencies = [
+            lib1: "v1.0.0",
+            lib2: "v2.0.0"
+    ]
+
+    glide = "com.github.bumptech.glide:glide:4.11.0"
+}

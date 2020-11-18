@@ -1,0 +1,220 @@
+/**
+ * 每一个 Groovy 脚本都会被编译器编译成 Script 字节码，
+ * 而每一个 build.gradle 脚本都会被编译器编译成 Project 字节码，
+ * 所以我们在 build.gradle 中所写的一切逻辑都是在 Project 类内进行书写的
+ */
+
+apply from: 'ext.gradle'
+apply from: 'config.gradle'
+
+//buildscript 中 用于配置项目核心的依赖
+buildscript {
+    repositories {
+        google()
+        mavenLocal()
+        mavenCentral()
+        jcenter()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:3.6.3'
+
+        // NOTE: Do not place your application dependencies here; they belong
+        // in the individual module build.gradle files
+    }
+}
+
+/**
+ * 在rootProject和所有的子Project中都会使用到,都会执行
+ */
+allprojects {
+    repositories {
+        println "allprojects::repositories"
+    }
+    buildscript {
+        repositories {
+            mavenLocal()
+            mavenCentral()
+            jcenter()
+        }
+    }
+
+    dependencies {
+        repositories {
+            google()
+            mavenLocal()
+            mavenCentral()
+            jcenter()
+        }
+    }
+
+    apply plugin: 'maven'
+}
+
+/**
+ * getAllProjects 使用示例,Configure阶段执行
+ */
+this.getProjects()
+
+def getProjects() {
+    println "<================>"
+    println " Root Project Start "
+    println "<================>"
+    // 1、getAllprojects 方法返回一个包含根 project 与其子 project 的 Set 集合
+    // eachWithIndex 方法用于遍历集合、数组等可迭代的容器，
+    // 并同时返回下标，不同于 each 方法仅返回 project
+    this.getAllprojects().eachWithIndex { Project project, int index ->
+        // 2、下标为 0，表明当前遍历的是 rootProject
+        if (index == 0) {
+            println "Root Project is $project"
+        } else {
+            println "child Project is $project"
+        }
+    }
+}
+
+
+/**
+ * getAllsubproject 使用示例
+ */
+this.getSubProjects()
+
+def getSubProjects() {
+    println "<================>"
+    println " Sub Project Start "
+    println "<================>"
+    // getSubprojects 方法返回一个包含子 project 的 Set 集合
+    this.getSubprojects().each { Project project ->
+        println "child Project is $project"
+    }
+}
+
+println "root project's parent project is $parent"
+
+/**
+ * 4、getRootProject 使用示例
+ */
+this.getRootPro()
+
+def getRootPro() {
+    def rootProjectName = this.getRootProject().name
+    println "root project is $rootProjectName"
+}
+
+/**
+ * 5、project 使用示例
+ */
+
+// 1、闭包参数可以放在括号外面
+project("myPlugin") { Project project ->
+//    apply plugin: 'com.android.application'
+}
+
+// 2、更简洁的写法是这样的：省略参数
+project("myPlugin") {
+//    apply plugin: 'com.android.application'
+}
+
+/**
+ * 7、subprojects 使用示例：
+ *    给所有的子工程引入 将 aar 文件上传置 Maven 服务器的配置脚本
+ */
+subprojects {
+    println "subprojects:" + project
+    if (project.plugins.hasPlugin("com.android.library")) {
+        apply from: '../publishToMaven.gradle'
+    }
+
+    //优先级高
+    ext {
+        versionName = 'v2.0.0'
+    }
+}
+
+ext {
+    versionName = 'v1.0.0'
+}
+
+/**
+ * 1、路径获取 API
+ */
+println "the root file path is:" + getRootDir().absolutePath
+println "this build file path is:" + getBuildDir().absolutePath
+println "this Project file path is:" + getProjectDir().absolutePath
+
+
+/**
+ * 1、文件定位之 file
+ */
+this.getContent("config.gradle")
+
+def getContent(String path) {
+    try {
+        // 不同与 new File 的需要传入 绝对路径 的方式，
+        // file 从相对于当前的 project 工程开始查找
+        def mFile = file(path)
+        println mFile.text
+    } catch (GradleException e) {
+        println e.toString()
+        return null
+    }
+}
+
+/**
+ * 1、文件定位之 files
+ */
+this.getContent("config.gradle", "local.properties")
+
+def getContent(String path1, String path2) {
+    try {
+        // 不同与 new file 的需要传入 绝对路径 的方式，
+        // file 从相对于当前的 project 工程开始查找
+        def mFiles = files(path1, path2)
+        println mFiles[0].text + mFiles[1].text
+    } catch (GradleException e) {
+        println e.toString()
+        return null
+    }
+}
+
+
+// 1、按自顶向下的结构列出子项目的名称列表
+// ./gradlew projects
+// 2、分类列出项目中所有的任务
+// ./gradlew tasks
+// 3、列出项目的依赖列表
+// ./gradlew dependencies
+
+
+/**
+ * // 1、按自顶向下的结构列出子项目的名称列表
+ * ./gradlew projects
+ * // 2、分类列出项目中所有的任务
+ * ./gradlew tasks
+ * // 3、列出项目的依赖列表
+ * ./gradlew dependencies
+ *
+ *
+ * // 1、用于执行多个 task 任务
+ * ./gradlew JsonChao Gradle_Last
+ * // 2、使用 -x 排除单个 task 任务
+ * ./gradlew -x JsonChao
+ * // 3、使用 -continue 可以在构建失败后继续执行下面的构建命令
+ * ./gradlew -continue JsonChao
+ * // 4、建议使用简化的 task name 去执行 task，下面的命令用于执行
+ * // Gradle_Last 这个 task
+ * ./gradlew G_Last
+ *
+ *
+ * // 1、使用 -b 执行 app 目录下定义的 task
+ * ./gradlew -b app/build.gradle MyTask
+ * // 2、在大型项目中我们一般使用更加智能的 -p 来替代 -b
+ * ./gradlew -p app MyTask
+ */
+
+
+/**
+ * Build Scan 是官方推出的用于诊断应用构建过程的性能检测工具，它能分析出导致应用构建速度慢的一些问题。
+ * 在项目下使用如下命令即可开启 Build Scan 诊断：
+ *
+ *  ./gradlew build --scan
+ */

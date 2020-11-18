@@ -1,0 +1,320 @@
+plugins {
+    id 'java-library'
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_7
+    targetCompatibility = JavaVersion.VERSION_1_7
+}
+
+task "hello" {
+    println "this is myPlugin's task"
+    beforeEvaluate {
+        println "hello:beforeEvaluate"
+    }
+    afterEvaluate {
+        println "hello:afterEvaluate"
+    }
+
+    doFirst {
+        println "hello:doFirst"
+    }
+    doLast {
+        println "hello:doLast"
+    }
+}
+
+dependencies {
+    implementation(rootProject.ext.glide) {
+        // 排除依赖：一般用于解决资源、代码冲突相关的问题
+        exclude module: 'support-v4'
+        // 传递依赖：A => B => C ，B 中使用到了 C 中的依赖，
+        // 且 A 依赖于 B，如果打开传递依赖，则 A 能使用到 B
+        // 中所使用的 C 中的依赖，默认都是不打开，即 false
+        transitive false
+    }
+}
+
+println "parent project is $parent"
+println "versionName=" + versionName
+
+def implementationDependencies = rootProject.ext.dependencies
+implementationDependencies.each { k, v ->
+//    implementation v
+    println "key:$k,value:$v"
+}
+
+println "gradle.properties::mCompileVersion:" + mCompileVersion
+
+/**
+ * 2、文件拷贝
+ */
+copy {
+    // 既可以拷贝文件，也可以拷贝文件夹
+    // 这里是将 app moudle 下生成的 apk 目录拷贝到根工程下的 build 目录
+    from file("build/classes")
+    into getRootProject().getBuildDir().path + "/classes/"
+    exclude {
+        // 排除不需要拷贝的文件
+        println "exclude:$it"
+    }
+    rename {
+        // 对拷贝过来的文件进行重命名
+        println "rename:$it"
+    }
+}
+
+/**
+ * 3、文件树遍历
+ */
+fileTree("build/classes/") { FileTree fileTree ->
+    fileTree.visit { FileTreeElement fileTreeElement ->
+        if (!fileTreeElement.isDirectory()) {
+            println "The file is $fileTreeElement.file.name"
+            copy {
+                from fileTreeElement.file
+                into getRootProject().getBuildDir().path + "/apkTree/"
+            }
+        }
+    }
+}
+
+/**
+ * 使用 exec 执行外部命令
+ */
+task apkMove() {
+    doLast {
+        // 在 gradle 的执行阶段去执行
+        def sourcePath = this.buildDir.path + "/libs/"
+        def destinationPath = this.rootProject.buildDir.path + "/libs1/"
+        def command = "mv -f $sourcePath $destinationPath"
+        exec {
+            try {
+                executable "bash"
+                args "-c", command
+                println "The command execute is success"
+            } catch (GradleException e) {
+                println "The command execute is failed"
+            }
+        }
+    }
+}
+
+
+// 1、声明一个名为 JsonChao 的 gradle task
+task JsonChao {
+    // 2、在 JsonChao task 闭包内输出 hello~，
+    // 执行在 gradle 生命周期的第二个阶段，即配置阶段。
+    println("hello~")
+    // 3、给 task 附带一些 执行动作（Action），执行在
+    // gradle 生命周期的第三个阶段，即执行阶段。
+
+    //doFirst：表示 task 执行最开始的时候被调用的 Action
+    doFirst {
+        println("start")
+    }
+
+    //表示 task 将执行完的时候被调用的 Action
+    doLast {
+        println("end")
+    }
+}
+
+// 4、除了上述这种将声明与配置、Action 分别定义
+// 的方式之外，也可以直接将它们结合起来。
+// 这里我们又定义了一个 Android task，它依赖于 JsonChao
+// task，也就是说，必须先执行完 JsonChao task，才能
+// 去执行 Android task，由此，它们之间便组成了一个
+// 有向无环图：JsonChao task => Android task
+task Andorid(dependsOn: JsonChao) {
+    doLast {
+        println("end?")
+    }
+}
+
+
+// Task 定义方式1：直接通过 task 函数去创建（在 "()" 可以不指定 group 与 description 属性）
+task myTask1(group: "MyTask", description: "task1描述") {
+    println "This is myTask1"
+}
+
+// Task 定义方式2：通过 TaskContainer 去创建 task
+this.tasks.create(name: "myTask2") {
+    setGroup("MyTask")
+    setDescription("task2描述")
+    println "This is myTask2"
+}
+
+//使用 defaultTasks 关键字 来将一些任务标识为默认的执行任务
+defaultTasks "Gradle_First", "Gradle_Last"
+
+task Gradle_First() {
+    ext.good = true
+}
+
+Gradle_First.doLast {
+    println "Gradle_First.doLast"
+}
+
+task Gradle_Last(dependsOn: Gradle_First) {
+    doFirst {
+        println Gradle_First.good
+    }
+    doLast {
+        println "I am not $Gradle_First.name"
+    }
+}
+
+
+// Task 执行实战：计算 build 执行期间的耗时
+def startBuildTime, endBuildTime
+// 1、在 Gradle 配置阶段完成之后进行操作，
+// 以此保证要执行的 task 配置完毕
+this.afterEvaluate { Project project ->
+    // 2、找到当前 project 下第一个执行的 task，即 preBuild task
+    def preBuildTask = project.tasks.getByName("assemble")
+    preBuildTask.doFirst {
+        // 3、获取第一个 task 开始执行时刻的时间戳
+        startBuildTime = System.currentTimeMillis()
+    }
+    // 4、找到当前 project 下最后一个执行的 task，即 build task
+    def buildTask = project.tasks.getByName("build")
+    buildTask.doLast {
+        // 5、获取最后一个 task 执行完成前一瞬间的时间戳
+        endBuildTime = System.currentTimeMillis()
+        // 6、输出 build 执行期间的耗时
+        println "Current project execute time is ${endBuildTime - startBuildTime}"
+    }
+}
+
+
+task task1 {
+    doLast {
+        println "This is task1"
+    }
+}
+
+task task2 {
+    doLast {
+        println "This is task2"
+    }
+}
+
+// Task 静态依赖方式1 (常用）
+task task3(dependsOn: [task1, task2]) {
+    doLast {
+        println "This is task3"
+    }
+}
+
+// Task 静态依赖方式2
+task3.dependsOn(task1, task2)
+
+// Task 动态依赖方式
+task dytask4 {
+    dependsOn this.tasks.findAll { task ->
+        return task.name.startsWith("task")
+    }
+    doLast {
+        println "This is task4"
+    }
+}
+
+
+ext {
+    destFile = file(this.rootProject.buildDir.path + "/taskOutput/")
+}
+
+task writeTask {
+    inputs.property('versionName', this.versionName)
+    // 1、指定输出文件为 destFile
+    outputs.file this.destFile
+
+    //创建一个临时文件
+    this.destFile.createNewFile()
+
+    doLast {
+        //将输入的内容写入到输出文件中去
+        def data = inputs.getProperties()
+        File file = outputs.getFiles().getSingleFile()
+
+        // 写入版本信息到 XML 文件
+        file.write(data.toMapString())
+
+    }
+}
+task readTask {
+    // 2、指定输入文件为上一个 task（writeTask） 的输出文件 destFile
+    inputs.file this.destFile
+    doLast {
+        //读取输入文件的内容并显示
+        def file = inputs.files.singleFile
+        println "readTask:" + file.text
+    }
+}
+
+task outputwithinputTask {
+    // 3、先执行写入，再执行读取
+    dependsOn writeTask, readTask
+    doLast {
+        println '输入输出任务结束'
+    }
+}
+
+
+// 通过 API 指定依赖顺序
+task taskX {
+    mustRunAfter "taskY"
+
+    doFirst {
+        println "this is taskX"
+    }
+}
+
+task taskY {
+    // 使用 mustRunAfter 指定依赖的（一至多个）前置 task
+    // 也可以使用 shouldRunAfter 的方式，但是是非强制的依赖
+    //shouldRunAfter taskA
+    doFirst {
+        println "this is taskY"
+    }
+}
+
+task taskZ(dependsOn: [taskX, taskY]) {
+    mustRunAfter "taskY"
+    doFirst {
+        println "this is taskZ"
+    }
+}
+
+// 1、删除根目录下的 build 文件
+task cleanOutPut(type: Delete) {
+    delete rootProject.buildDir.path + "/taskOutput/"
+    followSymlinks true
+}
+
+// 2、将 src/main/java 复制到 build/target 目录下
+task copyDocs(type: Copy) {
+    from 'src/main/java'
+    into 'build/target/doc'
+}
+
+// 3、执行时会复制源文件到目标目录，然后从目标目录删除所有非复制文件
+task syncFile(type: Sync) {
+    from 'src/main/java/org'
+    into 'build/target/doc'
+    preserve {
+        exclude "com/**"
+    }
+}
+
+// 在配置阶段执行完之后执行 writeTask
+this.project.afterEvaluate { project ->
+    def buildTask = project.tasks.findByName("build")
+    buildTask.finalizedBy writeTask
+//    buildTask.doLast {
+//        // 5.x 上使用 finalizedBy
+//        writeTask.execute()
+//
+//    }
+}

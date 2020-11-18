@@ -1,0 +1,129 @@
+include ':mylibrary'
+include ':plugin'
+
+/**
+ * 参考:https://juejin.im/post/6844904132092903437
+ */
+
+//一个 Gradle 构建流程中会由一至多个 project 实例构成，而每一个 project 实例又是由一至多个 task 构成
+
+//动态添加构建project
+boolean useMyPlugin = true
+if (useMyPlugin) {
+    include(":myPlugin")
+    project(":myPlugin").projectDir = file("./myPlugin")
+}
+
+//添加构建回调事件监听器
+gradle.addBuildListener(new BuildListener() {
+    @Override
+    void buildStarted(Gradle gradle) {
+        println "buildStarted:开始构建"
+    }
+
+    @Override
+    void settingsEvaluated(Settings settings) {
+        println "settingsEvaluated:" + settings.properties
+    }
+
+    @Override
+    void projectsLoaded(Gradle gradle) {
+        println "projectsLoaded:初始化阶段完成:" + gradle.rootProject.properties
+    }
+
+    @Override
+    void projectsEvaluated(Gradle gradle) {
+        println "projectsEvaluated:所有模块都配置完成,可以开始执行task了"
+    }
+
+    @Override
+    void buildFinished(BuildResult result) {
+        println "buildFinished:" + result.properties
+    }
+})
+
+//添加Project构建回调
+gradle.addProjectEvaluationListener(new ProjectEvaluationListener() {
+    @Override
+    void beforeEvaluate(Project project) {
+        println "beforeEvaluate:" + project.properties
+    }
+
+    @Override
+    void afterEvaluate(Project project, ProjectState state) {
+        println "afterEvaluate::project:" + project.properties
+        println "afterEvaluate::state:" + state.properties
+    }
+})
+
+//添加task有向无环图构建完成的通知
+gradle.taskGraph.whenReady { graph ->
+    println "whenReady:" + graph.properties
+}
+
+//添加task有向无环图构建完成的通知
+gradle.taskGraph.addTaskExecutionGraphListener(new TaskExecutionGraphListener() {
+    @Override
+    void graphPopulated(TaskExecutionGraph graph) {
+        println "graphPopulated:" + graph.properties
+    }
+})
+
+//添加task执行的事件通知
+gradle.taskGraph.addTaskExecutionListener(new TaskExecutionListener() {
+    @Override
+    void beforeExecute(Task task) {
+        println "beforeExecute:" + task.properties
+    }
+
+    @Override
+    void afterExecute(Task task, TaskState state) {
+        println "afterExecute::task:" + task.properties
+        println "afterExecute::state:" + state.properties
+    }
+})
+
+long beginOfSetting = System.currentTimeMillis()
+def beginOfConfig
+def configHasBegin = false
+def beginOfProjectConfig = new HashMap()
+def beginOfProjectExecute
+
+//project加载完成
+gradle.projectsLoaded {
+    println '初始化阶段，耗时：' + (System.currentTimeMillis() - beginOfSetting) + 'ms'
+}
+
+//每一个project的配置阶段开始
+gradle.beforeProject { project ->
+    if (!configHasBegin) {
+        configHasBegin = true
+        beginOfConfig = System.currentTimeMillis()
+    }
+    beginOfProjectConfig.put(project, System.currentTimeMillis())
+}
+
+gradle.afterProject { project ->
+    def begin = beginOfProjectConfig.get(project)
+    println '配置阶段，' + project + '耗时：' + (System.currentTimeMillis() - begin) + 'ms'
+}
+
+//配置阶段的task有向无环图构建完成,开始执行task
+gradle.taskGraph.whenReady {
+    println '配置阶段，总共耗时：' + (System.currentTimeMillis() - beginOfConfig) + 'ms'
+    beginOfProjectExecute = System.currentTimeMillis()
+}
+
+gradle.taskGraph.beforeTask { task ->
+    task.doFirst {
+        task.ext.beginOfTask = System.currentTimeMillis()
+    }
+    task.doLast {
+        println '执行阶段，' + task + '耗时：' + (System.currentTimeMillis() - task.beginOfTask) + 'ms'
+    }
+}
+
+//构建完成
+gradle.buildFinished {
+    println '执行阶段，耗时：' + (System.currentTimeMillis() - beginOfProjectExecute) + 'ms'
+}
