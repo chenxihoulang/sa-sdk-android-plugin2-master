@@ -1,5 +1,14 @@
 plugins {
     id 'com.android.library'
+    id 'com.chw.plugin.custom_gradle_plugin'
+}
+
+
+releaseInfo {
+    versionCode = "1"
+    versionName = "1.0.0"
+    versionInfo = "第一个版本~"
+    fileName = "releases.xml"
 }
 
 android {
@@ -12,8 +21,15 @@ android {
         versionCode 1
         versionName "1.0"
 
-        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
         consumerProguardFiles "consumer-rules.pro"
+    }
+
+    flavorDimensions "code"
+
+    productFlavors {
+        douyin {}
+        weixin {}
+        google {}
     }
 
     buildTypes {
@@ -39,6 +55,18 @@ android {
     }
 }
 
+
 dependencies {
 
+}
+
+//Configure阶段运行
+apply plugin: PluginDemo
+
+class PluginDemo implements Plugin<Project> {
+
+    @Override
+    void apply(Project target) {
+        println "hello plugin:" + target.name
+    }
 }

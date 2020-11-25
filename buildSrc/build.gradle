@@ -1,0 +1,32 @@
+apply plugin: 'groovy'
+
+/**
+ * 由于 buildSrc 的执行时机要早于任何一个 project，因此需要⾃⼰添加仓库
+ */
+repositories {
+    google()
+    mavenCentral()
+    jcenter()
+}
+
+dependencies {
+    implementation localGroovy()
+    implementation gradleApi()
+
+    implementation 'com.android.tools.build:gradle:3.6.3'
+
+    implementation 'org.ow2.asm:asm:6.0'
+    implementation 'org.ow2.asm:asm-commons:6.0'
+}
+
+sourceSets {
+    main {
+        groovy {
+            srcDir 'src/main/groovy'
+        }
+
+        resources {
+            srcDir 'src/main/resources'
+        }
+    }
+}

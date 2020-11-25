@@ -1,3 +1,9 @@
+/**
+ * 1）、buildSrc 的执行时机不仅早于任何⼀个 project（build.gradle），而且也早于 settings.gradle。
+ * 2）、settings.gradle 中如果配置了 ':buildSrc' ，buildSrc ⽬录就会被当做是子 Project ，
+ * 因会它会被执行两遍。所以在 settings.gradle 里面应该删掉 ':buildSrc' 的配置
+ */
+//include ':buildSrc'
 include ':mylibrary'
 include ':plugin'
 
