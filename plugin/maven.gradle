@@ -1,18 +1,24 @@
 apply plugin: 'maven'
 
-version=pluginVersion
+version = pluginVersion
 group = "com.sensorsdata.analytics.android"
-def nexusRepositoryUrl=nexusReleases
+def nexusRepositoryUrl = nexusReleases
 
-if (!false.toBoolean()){
+if (!false.toBoolean()) {
     version = "${version}"
-    nexusRepositoryUrl=nexusSnapshots
+    nexusRepositoryUrl = nexusSnapshots
 }
 
+//引入 maven 插件之后，在 uploadArchives 加入想要上传的仓库地址与相关配置
 uploadArchives {
     repositories {
         mavenDeployer {
+            //上传到当前项目根目录下的本地repo目录中
             repository(url: uri('../repo'))
+
+            pom.groupId = 'com.json.chao.study'
+            pom.artifactId = 'custom-gradle-plugin'
+            pom.version = '1.0.0'
         }
     }
 }

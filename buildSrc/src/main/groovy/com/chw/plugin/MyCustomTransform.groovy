@@ -24,6 +24,7 @@ import java.util.jar.JarOutputStream
 import java.util.zip.ZipEntry
 
 class MyCustomTransform extends Transform {
+    private static final EXPAND_FRAMES = 0;
 
     /**
      * 返回对应的 Transform 名称
@@ -117,7 +118,7 @@ class MyCustomTransform extends Transform {
             outputProvider.deleteAll()
         }
 
-        //Transform的inputs   有两种类型，一种是目录，一种是jar包，要分开遍历
+        //Transform的inputs有两种类型，一种是目录，一种是jar包，要分开遍历
         inputs.each { input ->
             //2、遍历directoryInputs（本地project编译成的多个class⽂件存放的目录 ）
             input.directoryInputs.each { directoryInput ->
@@ -161,7 +162,7 @@ class MyCustomTransform extends Transform {
                     println '----------- deal with "jar" class file <' + entryName + '> -----------'
                     jarOutputStream.putNextEntry(zipEntry)
                     ClassReader classReader = new ClassReader(IOUtils.toByteArray(inputStream))
-                    ClassWriter classWriter = new ClassWriter(classReader, org.objectweb.asm.ClassWriter.COMPUTE_MAXS)
+                    ClassWriter classWriter = new ClassWriter(classReader, ClassWriter.COMPUTE_MAXS)
                     ClassVisitor cv = new MyCustomClassVisitor(classWriter)
                     classReader.accept(cv, EXPAND_FRAMES)
                     byte[] code = classWriter.toByteArray()

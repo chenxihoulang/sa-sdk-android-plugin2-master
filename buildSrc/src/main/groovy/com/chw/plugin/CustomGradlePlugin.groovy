@@ -1,6 +1,7 @@
 package com.chw.plugin
 
 import com.android.build.gradle.AppExtension
+import com.android.build.gradle.LibraryExtension
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 
@@ -20,7 +21,7 @@ class CustomGradlePlugin implements Plugin<Project> {
         project.tasks.create("releaseInfoTask", ReleaseInfoTask.class)
 
         // 注册我们自定义的 Transform
-        def appExtension = project.extensions.findByType(AppExtension.class)
+        def appExtension = project.extensions.findByType(LibraryExtension.class)
         appExtension.registerTransform(new MyCustomTransform())
     }
 }
