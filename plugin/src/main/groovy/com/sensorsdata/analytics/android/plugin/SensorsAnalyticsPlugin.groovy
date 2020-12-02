@@ -22,18 +22,30 @@ import org.gradle.api.Project
 import org.gradle.internal.reflect.Instantiator
 import org.gradle.invocation.DefaultGradle
 
+/**
+ * 神策数据分析Gradle插件
+ * 1.创建扩展属性
+ * 2.获取配置信息
+ * 3.添加自定义Transform
+ * 
+ * apply plugin: 'com.sensorsdata.analytics.android'
+ */
 class SensorsAnalyticsPlugin implements Plugin<Project> {
     @Override
     void apply(Project project) {
         Instantiator ins = ((DefaultGradle) project.getGradle()).getServices().get(Instantiator)
         def args = [ins] as Object[]
+
+        //创建配置参数扩展属性
         SensorsAnalyticsExtension extension = project.extensions.create("sensorsAnalytics", SensorsAnalyticsExtension, args)
 
         boolean disableSensorsAnalyticsPlugin = false
         boolean disableSensorsAnalyticsMultiThreadBuild = false
         boolean disableSensorsAnalyticsIncrementalBuild = false
         boolean isHookOnMethodEnter = false
+
         Properties properties = new Properties()
+        //从gradle.properties文件中获取配置属性
         if (project.rootProject.file('gradle.properties').exists()) {
             properties.load(project.rootProject.file('gradle.properties').newDataInputStream())
             disableSensorsAnalyticsPlugin = Boolean.parseBoolean(properties.getProperty("sensorsAnalytics.disablePlugin", "false")) ||
@@ -42,12 +54,17 @@ class SensorsAnalyticsPlugin implements Plugin<Project> {
             disableSensorsAnalyticsIncrementalBuild = Boolean.parseBoolean(properties.getProperty("sensorsAnalytics.disableIncrementalBuild", "false"))
             isHookOnMethodEnter = Boolean.parseBoolean(properties.getProperty("sensorsAnalytics.isHookOnMethodEnter", "false"))
         }
+
+        //没有禁用神策插件
         if (!disableSensorsAnalyticsPlugin) {
             AppExtension appExtension = project.extensions.findByType(AppExtension.class)
+
             SensorsAnalyticsTransformHelper transformHelper = new SensorsAnalyticsTransformHelper(extension, appExtension)
             transformHelper.disableSensorsAnalyticsIncremental = disableSensorsAnalyticsIncrementalBuild
             transformHelper.disableSensorsAnalyticsMultiThread = disableSensorsAnalyticsMultiThreadBuild
             transformHelper.isHookOnMethodEnter = isHookOnMethodEnter
+
+            //在app模块注册我们自定义的 Transform
             appExtension.registerTransform(new SensorsAnalyticsTransform(transformHelper))
         } else {
             Logger.error("------------您已关闭了神策插件--------------")

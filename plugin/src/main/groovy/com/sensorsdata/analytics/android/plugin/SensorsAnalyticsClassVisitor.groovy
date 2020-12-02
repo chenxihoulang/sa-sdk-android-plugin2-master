@@ -24,6 +24,9 @@ import org.objectweb.asm.MethodVisitor
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.Type
 
+/**
+ * 类访问
+ */
 class SensorsAnalyticsClassVisitor extends ClassVisitor {
     private String mClassName
     private String mSuperName
@@ -110,9 +113,12 @@ class SensorsAnalyticsClassVisitor extends ClassVisitor {
                 mv = classVisitor.visitMethod(Opcodes.ACC_PUBLIC, methodCell.name, methodCell.desc, null, null)
                 mv.visitCode()
                 // call super
-                visitMethodWithLoadedParams(mv, Opcodes.INVOKESPECIAL, mSuperName, methodCell.name, methodCell.desc, methodCell.paramsStart, methodCell.paramsCount, methodCell.opcodes)
+                visitMethodWithLoadedParams(mv, Opcodes.INVOKESPECIAL, mSuperName, methodCell.name,
+                        methodCell.desc, methodCell.paramsStart, methodCell.paramsCount, methodCell.opcodes)
                 // call injected method
-                visitMethodWithLoadedParams(mv, Opcodes.INVOKESTATIC, SensorsAnalyticsHookConfig.SENSORS_ANALYTICS_API, methodCell.agentName, methodCell.agentDesc, methodCell.paramsStart, methodCell.paramsCount, methodCell.opcodes)
+                visitMethodWithLoadedParams(mv, Opcodes.INVOKESTATIC, SensorsAnalyticsHookConfig.SENSORS_ANALYTICS_API,
+                        methodCell.agentName, methodCell.agentDesc, methodCell.paramsStart,
+                        methodCell.paramsCount, methodCell.opcodes)
                 mv.visitInsn(Opcodes.RETURN)
                 mv.visitMaxs(methodCell.paramsCount, methodCell.paramsCount)
                 mv.visitEnd()

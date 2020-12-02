@@ -43,10 +43,15 @@ import java.util.jar.JarEntry
 import java.util.jar.JarFile
 import java.util.jar.JarOutputStream
 
+/**
+ * 自定义Transform
+ */
 class SensorsAnalyticsTransform extends Transform {
     private SensorsAnalyticsTransformHelper transformHelper
+
     public static final String VERSION = "3.2.15"
     public static final String MIN_SDK_VERSION = "4.3.2"
+
     private WaitableExecutor waitableExecutor
     private URLClassLoader urlClassLoader
 
@@ -87,6 +92,7 @@ class SensorsAnalyticsTransform extends Transform {
     private void transformClass(Context context, Collection<TransformInput> inputs, TransformOutputProvider outputProvider, boolean isIncremental)
             throws IOException, TransformException, InterruptedException {
         long startTime = System.currentTimeMillis()
+        //非增量更新,删除以前的文件
         if (!isIncremental) {
             outputProvider.deleteAll()
         }
@@ -132,8 +138,10 @@ class SensorsAnalyticsTransform extends Transform {
     private void beforeTransform(TransformInvocation transformInvocation) {
         //打印提示信息
         Logger.printCopyright()
+        //是否开启调试,从扩展属性中获取
         Logger.setDebug(transformHelper.extension.debug)
         transformHelper.onTransform()
+
         println("[SensorsAnalytics]: 是否开启多线程编译:${!transformHelper.disableSensorsAnalyticsMultiThread}")
         println("[SensorsAnalytics]: 是否开启增量编译:${!transformHelper.disableSensorsAnalyticsIncremental}")
         println("[SensorsAnalytics]: 此次是否增量编译:$transformInvocation.incremental")
@@ -157,6 +165,8 @@ class SensorsAnalyticsTransform extends Transform {
         def urlList = []
         def androidJar = transformHelper.androidJar()
         urlList << androidJar.toURI().toURL()
+
+        //Transform的inputs有两种类型，一种是目录，一种是jar包，要分开遍历
         transformInvocation.inputs.each { transformInput ->
             transformInput.jarInputs.each { jarInput ->
                 urlList << jarInput.getFile().toURI().toURL()
@@ -166,9 +176,13 @@ class SensorsAnalyticsTransform extends Transform {
                 urlList << directoryInput.getFile().toURI().toURL()
             }
         }
+
         def urlArray = urlList as URL[]
+
+        //创建classloader
         urlClassLoader = new URLClassLoader(urlArray)
         transformHelper.urlClassLoader = urlClassLoader
+
         checkRNState()
     }
 
@@ -188,6 +202,13 @@ class SensorsAnalyticsTransform extends Transform {
         }
     }
 
+    /**
+     * 遍历directoryInputs（本地project编译成的多个class⽂件存放的目录 ）
+     * @param isIncremental
+     * @param directoryInput
+     * @param outputProvider
+     * @param context
+     */
     void forEachDirectory(boolean isIncremental, DirectoryInput directoryInput, TransformOutputProvider outputProvider, Context context) {
         File dir = directoryInput.file
         File dest = outputProvider.getContentLocation(directoryInput.getName(),
@@ -251,7 +272,13 @@ class SensorsAnalyticsTransform extends Transform {
             modified.delete()
         }
     }
-
+    /**
+     * 遍历jarInputs（各个依赖所编译成的jar文件）
+     * @param isIncremental
+     * @param jarInput
+     * @param outputProvider
+     * @param context
+     */
     void forEachJar(boolean isIncremental, JarInput jarInput, TransformOutputProvider outputProvider, Context context) {
         String destName = jarInput.file.name
         //截取文件路径的 md5 值重命名输出文件，因为可能同名，会覆盖
@@ -261,6 +288,8 @@ class SensorsAnalyticsTransform extends Transform {
         }
         //获得输出文件
         File destFile = outputProvider.getContentLocation(destName + "_" + hexName, jarInput.contentTypes, jarInput.scopes, Format.JAR)
+
+        //增量更新
         if (isIncremental) {
             Status status = jarInput.getStatus()
             switch (status) {
@@ -356,6 +385,7 @@ class SensorsAnalyticsTransform extends Transform {
                 if (!jarEntry.isDirectory() && entryName.endsWith(".class")) {
                     className = entryName.replace("/", ".").replace(".class", "")
                     ClassNameAnalytics classNameAnalytics = transformHelper.analytics(className)
+                    //判断类文件是否需要进行修改
                     if (classNameAnalytics.isShouldModify) {
                         modifiedClassBytes = modifyClass(sourceClassBytes, classNameAnalytics)
                     }

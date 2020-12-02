@@ -28,7 +28,13 @@ class SensorsAnalyticsTransformHelper {
     boolean disableSensorsAnalyticsMultiThread
     boolean disableSensorsAnalyticsIncremental
     boolean isHookOnMethodEnter
+    /**
+     * 需要排除的包
+     */
     HashSet<String> exclude = new HashSet<>(['com.sensorsdata.analytics.android.sdk', 'android.support', 'androidx', 'com.qiyukf', 'android.arch', 'com.google.android', "com.tencent.smtt"])
+    /**
+     * 需要包含的类
+     */
     HashSet<String> include = new HashSet<>(['butterknife.internal.DebouncingOnClickListener',
                                              'com.jakewharton.rxbinding.view.ViewClickOnSubscribe',
                                              'com.facebook.react.uimanager.NativeViewHierarchyManager'])
@@ -61,31 +67,43 @@ class SensorsAnalyticsTransformHelper {
     }
 
     void onTransform() {
+        //打印出扩展属性信息
         println("sensorsAnalytics {\n" + extension + "\n}")
+
         ArrayList<String> excludePackages = extension.exclude
         if (excludePackages != null) {
             exclude.addAll(excludePackages)
         }
+
         ArrayList<String> includePackages = extension.include
         if (includePackages != null) {
             include.addAll(includePackages)
         }
+
         createSensorsAnalyticsHookConfig()
     }
 
     private void createSensorsAnalyticsHookConfig() {
         sensorsAnalyticsHookConfig = new SensorsAnalyticsSDKHookConfig()
+        //获取SensorsAnalyticsSDKExtension的所有元数据
         List<MetaProperty> metaProperties = SensorsAnalyticsSDKExtension.getMetaClass().properties
         for (it in metaProperties) {
             if (it.name == 'class') {
                 continue
             }
+
+            //如果属性值为true
             if (extension.sdk."${it.name}") {
                 sensorsAnalyticsHookConfig."${it.name}"(it.name)
             }
         }
     }
 
+    /**
+     * 分析类文件,判断哪些文件需要进行修改
+     * @param className
+     * @return
+     */
     ClassNameAnalytics analytics(String className) {
         ClassNameAnalytics classNameAnalytics = new ClassNameAnalytics(className)
         if (classNameAnalytics.isSDKFile()) {
@@ -129,7 +147,7 @@ class SensorsAnalyticsTransformHelper {
         return classNameAnalytics
     }
 
-    enum RN_STATE{
+    enum RN_STATE {
         NOT_FOUND, NO_VERSION, HAS_VERSION
     }
 }
